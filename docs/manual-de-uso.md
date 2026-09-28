@@ -162,11 +162,151 @@ El instalador web no depende de SQLite y admite 5 motores relacionales cliente-s
 
 ---
 
-## 7. Guía Práctica: Cómo Crear un Nuevo Módulo Paso a Paso
+## 7. Generador Automatizado de Módulos CRUD (`php artisan algoritmo:crud`)
 
-Para agregar una nueva entidad al sistema (por ejemplo, **Productos**), sigue siempre el orden estricto de la arquitectura:
+Algoritmo Framework v2.0.0 incorpora un potente generador de código por consola que construye módulos completos respetando el 100% de las capas de **Clean Architecture** en segundos.
 
-### Paso 7.1: Crear la Migración de Base de Datos
+### 7.1 Sintaxis del Comando
+
+```bash
+php artisan algoritmo:crud {name} [--table=nombre_tabla] [--force]
+```
+
+* `{name}`: Nombre del modelo en singular y PascalCase (ej: `Departamento`, `Municipio`, `Producto`, `Cliente`, `Proveedor`).
+* `--table`: *(Opcional)* Nombre personalizado para la tabla en base de datos. Por defecto, pluraliza en snake_case (ej: `departamentos`, `municipios`).
+* `--force`: *(Opcional)* Sobrescribe los archivos existentes si ya habían sido generados.
+
+### 7.2 Los 8 Componentes Arquitectónicos Generados
+
+Por cada módulo, el generador crea automáticamente:
+
+| Capa / Componente | Ubicación del Archivo | Responsabilidad |
+| :--- | :--- | :--- |
+| **1. ADO (DTO)** | `app/ADO/ADO{Modelo}.php` | Objeto de transporte tipado con PHP 8.2, inmutable y con métodos `fromArray()` y `toArray()`. |
+| **2. DAL (Data Access)** | `app/DAL/{Modelo}DAL.php` | Consultas SQL con `DB::table()`, filtros dinámicos y paginación server-side para DataTables. |
+| **3. BLL (Business Logic)**| `app/BLL/{Modelo}BLL.php` | Capa de negocio, orquestación en transacciones ACID (`ejecutarTransaccion()`) y auditoría automática. |
+| **4. FormRequest** | `app/Http/Requests/{Modelo}Request.php` | Validación tipada de peticiones HTTP antes de entrar a la lógica. |
+| **5. Controller** | `app/Http/Controllers/{Modelo}Controller.php` | Controlador RESTful puro, sin sentencias SQL ni acoplamiento a sesión. |
+| **6. Vistas Blade** | `resources/views/{plural}/*.blade.php` | Vistas completas (`index`, `create`, `edit`, `show`) estilizadas con Tailwind CSS y DataTables. |
+| **7. Migración DDL** | `database/migrations/*_create_{tabla}_table.php` | Migración de Laravel con columnas tipadas, índices y llaves foráneas. |
+| **8. Rutas Web** | `routes/web.php` | Registro automático del endpoint DataTable (`/{plural}/datatable`) y las rutas `Route::resource`. |
+
+---
+
+### 7.3 Caso Práctico 1: Generación del Módulo Departamentos
+
+El módulo de Departamentos gestiona las divisiones territoriales de primer nivel con su código DANE y nombre oficial.
+
+#### Paso 1: Ejecutar el comando Artisan
+```bash
+php artisan algoritmo:crud Departamento
+```
+
+**Salida en consola:**
+```text
+   INFO  Generando módulo CRUD para 'Departamento' (Tabla: departamentos)...  
+
+  ADODepartamento ............................................................. CREADO  
+  DepartamentoDAL ............................................................. CREADO  
+  DepartamentoBLL ............................................................. CREADO  
+  DepartamentoRequest ......................................................... CREADO  
+  DepartamentoController ...................................................... CREADO  
+  Vistas Blade (departamentos) ............................................... CREADAS  
+  Migración: 2026_09_28_create_departamentos_table.php ........................ CREADA  
+  Rutas Web (departamentos) .............................................. REGISTRADAS  
+
+   INFO  🎉 ¡Módulo CRUD para 'Departamento' generado con éxito!  
+
+  ├── ADO:        app/ADO/ADODepartamento.php
+  ├── DAL:        app/DAL/DepartamentoDAL.php
+  ├── BLL:        app/BLL/DepartamentoBLL.php
+  ├── Controller: app/Http/Controllers/DepartamentoController.php
+  ├── Request:    app/Http/Requests/DepartamentoRequest.php
+  ├── Vistas:     resources/views/departamentos/*.blade.php
+  └── Rutas:      /departamentos (registrado en routes/web.php)
+```
+
+---
+
+### 7.4 Caso Práctico 2: Generación del Módulo Municipios
+
+El módulo de Municipios administra los municipios asociados a su respectivo departamento mediante una **llave foránea** (`departamento_id`).
+
+#### Paso 1: Ejecutar el comando Artisan
+```bash
+php artisan algoritmo:crud Municipio
+```
+
+**Salida en consola:**
+```text
+   INFO  Generando módulo CRUD para 'Municipio' (Tabla: municipios)...  
+
+  ADOMunicipio ................................................................ CREADO  
+  MunicipioDAL ................................................................ CREADO  
+  MunicipioBLL ................................................................ CREADO  
+  MunicipioRequest ............................................................ CREADO  
+  MunicipioController ......................................................... CREADO  
+  Vistas Blade (municipios) .................................................. CREADAS  
+  Migración: 2026_09_28_create_municipios_table.php ........................... CREADA  
+  Rutas Web (municipios) ................................................. REGISTRADAS  
+
+   INFO  🎉 ¡Módulo CRUD para 'Municipio' generado con éxito!  
+
+  ├── ADO:        app/ADO/ADOMunicipio.php
+  ├── DAL:        app/DAL/MunicipioDAL.php
+  ├── BLL:        app/BLL/MunicipioBLL.php
+  ├── Controller: app/Http/Controllers/MunicipioController.php
+  ├── Request:    app/Http/Requests/MunicipioRequest.php
+  ├── Vistas:     resources/views/municipios/*.blade.php
+  └── Rutas:      /municipios (registrado en routes/web.php)
+```
+
+#### Ventajas y Relaciones Configuradas Automáticamente:
+1. **Acceso a Datos Relacional (`MunicipioDAL`):**
+   El método `dataTable()` y `listar()` incluye un `leftJoin('departamentos as d', 'm.departamento_id', '=', 'd.id')` para retornar la propiedad calculada `departamento_nombre`.
+2. **Formularios con Selector Reactivo:**
+   Tanto en `resources/views/municipios/create.blade.php` como en `edit.blade.php`, se genera un menú desplegable `<select name="departamento_id">` precargado con los departamentos registrados.
+3. **Búsqueda Avanzada Multi-campo:**
+   En la tabla interactiva de municipios, el campo de búsqueda filtra simultáneamente por nombre de municipio, código DANE o nombre del departamento.
+4. **Integridad Referencial:**
+   La migración define `$table->foreignId('departamento_id')->constrained('departamentos')->onDelete('cascade');`, garantizando que no queden registros huérfanos.
+
+---
+
+### 7.5 Aplicación de Migraciones en Base de Datos
+
+Una vez generados los módulos, ejecuta las migraciones de Laravel para crear las tablas físicas en el motor de base de datos configurado (MySQL, MariaDB, PostgreSQL, etc.):
+
+```bash
+php artisan migrate
+```
+
+Tablas resultantes:
+* `departamentos` (`id`, `codigo`, `nombre`, `activo`, `created_at`, `updated_at`).
+* `municipios` (`id`, `departamento_id`, `codigo`, `nombre`, `activo`, `created_at`, `updated_at`).
+
+---
+
+### 7.6 Navegación e Interfaz en el Dashboard
+
+El Sidebar de la aplicación (`resources/views/layouts/app.blade.php`) detecta dinámicamente las rutas recién generadas mediante directivas `@if(Route::has('departamentos.index'))` y `@if(Route::has('municipios.index'))`, mostrando los enlaces en el menú lateral:
+
+* **Departamentos:** `http://127.0.0.1:8000/departamentos`
+* **Municipios:** `http://127.0.0.1:8000/municipios`
+
+Cada módulo dispone de:
+* Búsqueda en vivo y paginación asíncrona por DataTables.
+* Creación y edición con validación de campos requeridos y toasts de notificación.
+* Modales de confirmación para borrado seguro con método `DELETE`.
+* Trazabilidad completa: cada operación queda registrada en la tabla `audits` (`audits.tabla`, `audits.operacion`, `audits.datos_anteriores`, `audits.datos_nuevos`).
+
+---
+
+## 8. Guía de Construcción Manual de Módulos (Enfoque Artesanal)
+
+Si deseas construir un módulo de forma completamente manual (por ejemplo, **Productos**), sigue siempre el orden estricto de la arquitectura:
+
+### Paso 8.1: Crear la Migración de Base de Datos
 Crea el archivo `database/migrations/2026_01_01_000004_create_productos_table.php`:
 ```php
 <?php
@@ -197,7 +337,7 @@ return new class extends Migration {
 };
 ```
 
-### Paso 7.2: Crear el DTO (`ADOProducto`)
+### Paso 8.2: Crear el DTO (`ADOProducto`)
 Crea el archivo `app/ADO/ADOProducto.php`:
 ```php
 <?php
@@ -252,7 +392,7 @@ class ADOProducto extends BaseADO
 }
 ```
 
-### Paso 7.3: Crear la Capa de Datos (`ProductoDAL`)
+### Paso 8.3: Crear la Capa de Datos (`ProductoDAL`)
 Crea el archivo `app/DAL/ProductoDAL.php`:
 ```php
 <?php
@@ -328,7 +468,7 @@ class ProductoDAL extends BaseDAL
 }
 ```
 
-### Paso 7.4: Crear la Capa de Negocio (`ProductoBLL`)
+### Paso 8.4: Crear la Capa de Negocio (`ProductoBLL`)
 Crea el archivo `app/BLL/ProductoBLL.php`:
 ```php
 <?php
@@ -391,7 +531,7 @@ class ProductoBLL extends BaseBLL
 }
 ```
 
-### Paso 7.5: Crear el FormRequest de Validación
+### Paso 8.5: Crear el FormRequest de Validación
 Crea el archivo `app/Http/Requests/ProductoRequest.php`:
 ```php
 <?php
@@ -424,7 +564,7 @@ class ProductoRequest extends FormRequest
 }
 ```
 
-### Paso 7.6: Crear el Controlador (`ProductoController`)
+### Paso 8.6: Crear el Controlador (`ProductoController`)
 Crea el archivo `app/Http/Controllers/ProductoController.php`:
 ```php
 <?php
@@ -468,7 +608,7 @@ class ProductoController extends Controller
 }
 ```
 
-### Paso 7.7: Registrar las Rutas Web
+### Paso 8.7: Registrar las Rutas Web
 En `routes/web.php` (dentro del grupo protegido `auth`):
 ```php
 Route::get('/productos/datatable', [ProductoController::class, 'dataTable'])->name('productos.datatable');
@@ -477,7 +617,7 @@ Route::resource('productos', ProductoController::class);
 
 ---
 
-## 8. Claude SDK y Herramientas del Desarrollador (`.claude/`)
+## 9. Claude SDK y Herramientas del Desarrollador (`.claude/`)
 
 El repositorio incluye un conjunto integral de directrices para desarrollo asistido por IA:
 
@@ -497,7 +637,7 @@ El repositorio incluye un conjunto integral de directrices para desarrollo asist
 
 ---
 
-## 9. Preguntas Frecuentes y Solución de Problemas
+## 10. Preguntas Frecuentes y Solución de Problemas
 
 ### ¿Cómo reinstalo o cambio de base de datos?
 Simplemente elimina el archivo de bloqueo:
