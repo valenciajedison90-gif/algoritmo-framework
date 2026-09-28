@@ -24,13 +24,18 @@ class ADOUsuario extends BaseADO
         public ?string $empresa_nombre = null,
         public ?string $created_at = null,
         public ?string $updated_at = null,
-    ) {}
+        ?int $empresaId = null,
+    ) {
+        if ($empresaId !== null && $this->empresa_id === null) {
+            $this->empresa_id = $empresaId;
+        }
+    }
 
     public static function fromArray(array $datos): static
     {
         return new static(
             id: isset($datos['id']) ? (int) $datos['id'] : null,
-            empresa_id: isset($datos['empresa_id']) ? (int) $datos['empresa_id'] : null,
+            empresa_id: isset($datos['empresa_id']) ? (int) $datos['empresa_id'] : (isset($datos['empresaId']) ? (int) $datos['empresaId'] : null),
             name: (string) ($datos['name'] ?? ''),
             email: (string) ($datos['email'] ?? ''),
             password: isset($datos['password']) ? (string) $datos['password'] : null,

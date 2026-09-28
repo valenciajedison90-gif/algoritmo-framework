@@ -107,6 +107,9 @@ class Installer
             'APP_NAME' => '"Algoritmo Framework"',
             'APP_ENV' => 'local',
             'APP_DEBUG' => 'true',
+            'SESSION_DRIVER' => 'file',
+            'QUEUE_CONNECTION' => 'sync',
+            'CACHE_STORE' => 'file',
         ];
 
         MergeConfig::updateEnv($this->laravelRoot, $envVars);

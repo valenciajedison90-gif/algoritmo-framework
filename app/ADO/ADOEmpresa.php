@@ -19,14 +19,19 @@ class ADOEmpresa extends BaseADO
         public bool $activo = true,
         public ?string $created_at = null,
         public ?string $updated_at = null,
-    ) {}
+        ?string $nombre = null,
+    ) {
+        if (!empty($nombre) && empty($this->razon_social)) {
+            $this->razon_social = $nombre;
+        }
+    }
 
     public static function fromArray(array $datos): static
     {
         return new static(
             id: isset($datos['id']) ? (int) $datos['id'] : null,
             nit: (string) ($datos['nit'] ?? ''),
-            razon_social: (string) ($datos['razon_social'] ?? ''),
+            razon_social: (string) ($datos['razon_social'] ?? $datos['nombre'] ?? ''),
             direccion: isset($datos['direccion']) ? (string) $datos['direccion'] : null,
             telefono: isset($datos['telefono']) ? (string) $datos['telefono'] : null,
             email: isset($datos['email']) ? (string) $datos['email'] : null,

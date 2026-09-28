@@ -368,56 +368,60 @@ class InstallService
         try {
             // 1. Crear Empresa Principal mediante ADO y EmpresaBLL
             $empresaAdo = new ADOEmpresa(
-                nombre: (string) ($companyData['nombre'] ?? 'Mi Empresa Principal'),
                 nit: (string) ($companyData['nit'] ?? '900000000-1'),
-                email: !empty($companyData['email']) ? (string) $companyData['email'] : null,
-                telefono: !empty($companyData['telefono']) ? (string) $companyData['telefono'] : null,
+                razon_social: (string) ($companyData['nombre'] ?? $companyData['razon_social'] ?? 'Mi Empresa Principal'),
                 direccion: !empty($companyData['direccion']) ? (string) $companyData['direccion'] : null,
+                telefono: !empty($companyData['telefono']) ? (string) $companyData['telefono'] : null,
+                email: !empty($companyData['email']) ? (string) $companyData['email'] : null,
                 activo: true
             );
 
-            $empresaBll = new EmpresaBLL();
-            $empresaResponse = $empresaBll->crear($empresaAdo);
+            /** @var EmpresaBLL $empresaBll */
+            $empresaBll = app(EmpresaBLL::class);
+            $empresaResponse = $empresaBll->guardar($empresaAdo);
 
-            if (!$empresaResponse['estado']) {
+            if (!($empresaResponse['estado'] ?? false)) {
                 return [
                     'success' => false,
-                    'message' => 'Error al registrar la empresa: ' . $empresaResponse['mensaje'],
+                    'message' => 'Error al registrar la empresa: ' . ($empresaResponse['mensaje'] ?? 'Error desconocido'),
                 ];
             }
 
-            $empresaId = (int) $empresaResponse['datos']['id'];
+            $empresaDatos = $empresaResponse['datos'];
+            $empresaId = is_object($empresaDatos) ? (int) $empresaDatos->id : (int) $empresaDatos['id'];
 
             // 2. Crear Super Administrador mediante ADO y UsuarioBLL
             $usuarioAdo = new ADOUsuario(
-                empresaId: $empresaId,
+                empresa_id: $empresaId,
                 name: (string) ($adminData['name'] ?? 'Super Administrador'),
                 email: (string) ($adminData['email'] ?? 'admin@misistema.com'),
-                password: (string) ($adminData['password'] ?? 'admin123'),
                 documento: !empty($adminData['documento']) ? (string) $adminData['documento'] : null,
                 telefono: !empty($adminData['telefono']) ? (string) $adminData['telefono'] : null,
                 rol: 'admin',
                 activo: true
             );
 
-            $usuarioBll = new UsuarioBLL();
-            $usuarioResponse = $usuarioBll->crear($usuarioAdo);
+            /** @var UsuarioBLL $usuarioBll */
+            $usuarioBll = app(UsuarioBLL::class);
+            $passwordPlano = (string) ($adminData['password'] ?? 'admin123');
+            $usuarioResponse = $usuarioBll->guardar($usuarioAdo, $passwordPlano);
 
-            if (!$usuarioResponse['estado']) {
+            if (!($usuarioResponse['estado'] ?? false)) {
                 return [
                     'success' => false,
-                    'message' => 'Error al registrar el administrador: ' . $usuarioResponse['mensaje'],
+                    'message' => 'Error al registrar el administrador: ' . ($usuarioResponse['mensaje'] ?? 'Error desconocido'),
                 ];
             }
 
-            $usuarioId = (int) $usuarioResponse['datos']['id'];
+            $usuarioDatos = $usuarioResponse['datos'];
+            $usuarioId = is_object($usuarioDatos) ? (int) $usuarioDatos->id : (int) $usuarioDatos['id'];
 
             // 3. Crear archivo de bloqueo de instalación
             $this->markAsInstalled([
                 'installed_at' => date('Y-m-d H:i:s'),
                 'framework_version' => '2.0.0',
-                'admin_email' => $adminData['email'],
-                'empresa_nombre' => $companyData['nombre'],
+                'admin_email' => $adminData['email'] ?? '',
+                'empresa_nombre' => $companyData['nombre'] ?? $companyData['razon_social'] ?? '',
             ]);
 
             return [
