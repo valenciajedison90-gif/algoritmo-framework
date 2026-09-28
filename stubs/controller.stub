@@ -1,0 +1,106 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\ADO\ADO{{ModelName}};
+use App\BLL\{{ModelName}}BLL;
+use App\Http\Requests\{{ModelName}}Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+/**
+ * Controlador para {{ModelName}}.
+ * Orquestación entre FormRequest, ADO y BLL.
+ */
+class {{ModelName}}Controller extends Controller
+{
+    protected {{ModelName}}BLL $bll;
+
+    public function __construct({{ModelName}}BLL $bll)
+    {
+        $this->bll = $bll;
+    }
+
+    public function index(): View
+    {
+        return view('{{viewPath}}.index');
+    }
+
+    public function dataTable(Request $request): JsonResponse
+    {
+        return response()->json($this->bll->dataTable($request->all()));
+    }
+
+    public function create(): View
+    {
+        ${{varName}} = new ADO{{ModelName}}();
+        return view('{{viewPath}}.create', compact('{{varName}}'));
+    }
+
+    public function store({{ModelName}}Request $request): JsonResponse|RedirectResponse
+    {
+        $ado = ADO{{ModelName}}::fromArray($request->validated());
+        $respuesta = $this->bll->guardar($ado);
+
+        if ($request->wantsJson()) {
+            return response()->json($respuesta, $respuesta['estado'] ? 201 : 422);
+        }
+
+        if (!$respuesta['estado']) {
+            return back()->withInput()->with('error', $respuesta['mensaje']);
+        }
+
+        return redirect()->route('{{viewPath}}.index')->with('success', $respuesta['mensaje']);
+    }
+
+    public function show(int $id): View|RedirectResponse
+    {
+        $respuesta = $this->bll->obtener($id);
+        if (!$respuesta['estado']) {
+            return redirect()->route('{{viewPath}}.index')->with('error', $respuesta['mensaje']);
+        }
+        ${{varName}} = $respuesta['datos'];
+        return view('{{viewPath}}.show', compact('{{varName}}'));
+    }
+
+    public function edit(int $id): View|RedirectResponse
+    {
+        $respuesta = $this->bll->obtener($id);
+        if (!$respuesta['estado']) {
+            return redirect()->route('{{viewPath}}.index')->with('error', $respuesta['mensaje']);
+        }
+        ${{varName}} = $respuesta['datos'];
+        return view('{{viewPath}}.edit', compact('{{varName}}'));
+    }
+
+    public function update({{ModelName}}Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        $datos = $request->validated();
+        $datos['id'] = $id;
+        $ado = ADO{{ModelName}}::fromArray($datos);
+        $respuesta = $this->bll->guardar($ado);
+
+        if ($request->wantsJson()) {
+            return response()->json($respuesta, $respuesta['estado'] ? 200 : 422);
+        }
+
+        if (!$respuesta['estado']) {
+            return back()->withInput()->with('error', $respuesta['mensaje']);
+        }
+
+        return redirect()->route('{{viewPath}}.index')->with('success', $respuesta['mensaje']);
+    }
+
+    public function destroy(int $id, Request $request): JsonResponse|RedirectResponse
+    {
+        $respuesta = $this->bll->eliminar($id);
+        if ($request->wantsJson()) {
+            return response()->json($respuesta, $respuesta['estado'] ? 200 : 422);
+        }
+        return redirect()->route('{{viewPath}}.index')->with($respuesta['estado'] ? 'success' : 'error', $respuesta['mensaje']);
+    }
+}

@@ -1,1 +1,37 @@
-{{Modulo}} -> ADO/BLL/DAL/Controller/Request/View
+# Plantilla de Módulo: {{Modulo}}
+
+## 1. Especificación del ADO (`app/ADO/ADO{{Modulo}}.php`)
+- Entidad: `{{Modulo}}`
+- Campos y Tipos:
+  - `id`: ?int
+  - `nombre`: string
+  - `activo`: bool
+  - `created_at`: ?string
+  - `updated_at`: ?string
+
+## 2. Especificación de la Capa DAL (`app/DAL/{{Modulo}}DAL.php`)
+- Tabla: `{{tabla}}`
+- Métodos requeridos:
+  - `obtenerPorId(int $id): ?ADO{{Modulo}}`
+  - `listar(array $filtros): array`
+  - `dataTable(array $params): array`
+  - `crear(ADO{{Modulo}} $ado): int`
+  - `actualizar(ADO{{Modulo}} $ado): bool`
+  - `eliminar(int $id): bool`
+
+## 3. Especificación de la Capa BLL (`app/BLL/{{Modulo}}BLL.php`)
+- Reglas de Negocio:
+  - Validación de unicidad de campos clave.
+  - Validación de permisos y estado activo.
+  - Registro de auditoría atómica mediante `AuditService`.
+  - Excepciones tipadas con `BusinessException`.
+
+## 4. Especificación del Controlador (`app/Http/Controllers/{{Modulo}}Controller.php`)
+- Acciones RESTful: `index`, `dataTable`, `create`, `store`, `show`, `edit`, `update`, `destroy`.
+- FormRequest: `{{Modulo}}Request`.
+
+## 5. Vistas Blade (`resources/views/{{modulo_plural}}/`)
+- `index.blade.php`: DataTable server-side y botones de acción.
+- `create.blade.php`: Formulario de registro con `@csrf`.
+- `edit.blade.php`: Formulario de actualización con `@method('PUT')`.
+- `show.blade.php`: Ficha detallada con datos del registro.

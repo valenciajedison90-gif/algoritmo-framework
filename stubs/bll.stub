@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\BLL;
+
+use App\ADO\ADO{{ModelName}};
+use App\Core\AuditService;
+use App\Core\LogService;
+use App\DAL\{{ModelName}}DAL;
+
+/**
+ * Business Logic Layer para {{ModelName}}.
+ */
+class {{ModelName}}BLL extends BaseBLL
+{
+    protected {{ModelName}}DAL $dal;
+
+    public function __construct(LogService $logger, AuditService $auditor, {{ModelName}}DAL $dal)
+    {
+        parent::__construct($logger, $auditor);
+        $this->dal = $dal;
+    }
+
+    public function obtener(int $id): array
+    {
+        $registro = $this->dal->obtenerPorId($id);
+        if (!$registro) {
+            return $this->respuestaError("El registro solicitado no existe.");
+        }
+        return $this->respuestaExitosa("Registro obtenido correctamente.", $registro);
+    }
+
+    public function listar(array $filtros = []): array
+    {
+        $registros = $this->dal->listar($filtros);
+        return $this->respuestaExitosa("Listado obtenido correctamente.", $registros);
+    }
+
+    public function dataTable(array $params): array
+    {
+        return $this->dal->dataTable($params);
+    }
+
+    public function guardar(ADO{{ModelName}} $ado): array
+    {
+        return $this->ejecutarTransaccion(function () use ($ado) {
+            if ($ado->id === null || $ado->id === 0) {
+                $id = $this->dal->crear($ado);
+                $ado->id = $id;
+                $this->auditor->registrar('{{tableNameUpper}}', 'CREAR', $id, null, $ado->toArray());
+                return $this->respuestaExitosa("Creado exitosamente.", $ado);
+            }
+
+            $anterior = $this->dal->obtenerPorId($ado->id);
+            $this->dal->actualizar($ado);
+            $this->auditor->registrar('{{tableNameUpper}}', 'ACTUALIZAR', $ado->id, $anterior?->toArray(), $ado->toArray());
+            return $this->respuestaExitosa("Actualizado exitosamente.", $ado);
+        });
+    }
+
+    public function eliminar(int $id): array
+    {
+        return $this->ejecutarTransaccion(function () use ($id) {
+            $registro = $this->dal->obtenerPorId($id);
+            if (!$registro) {
+                $this->lanzarExcepcion("El registro no existe.", 404);
+            }
+            $this->dal->eliminar($id);
+            $this->auditor->registrar('{{tableNameUpper}}', 'ELIMINAR', $id, $registro->toArray(), null);
+            return $this->respuestaExitosa("Eliminado correctamente.");
+        });
+    }
+}

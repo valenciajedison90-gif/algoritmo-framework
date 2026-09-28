@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\ADO;
+
+/**
+ * Objeto de Transporte de Datos (ADO) para {{ModelName}}.
+ */
+class ADO{{ModelName}} extends BaseADO
+{
+    public function __construct(
+        public ?int $id = null,
+        public ?string $nombre = null,
+        public bool $activo = true,
+        public ?string $created_at = null,
+        public ?string $updated_at = null,
+    ) {}
+
+    public static function fromArray(array $datos): static
+    {
+        return new static(
+            id: isset($datos['id']) ? (int) $datos['id'] : null,
+            nombre: isset($datos['nombre']) ? (string) $datos['nombre'] : null,
+            activo: isset($datos['activo']) ? (bool) $datos['activo'] : true,
+            created_at: isset($datos['created_at']) ? (string) $datos['created_at'] : null,
+            updated_at: isset($datos['updated_at']) ? (string) $datos['updated_at'] : null,
+        );
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'nombre' => $this->nombre,
+            'activo' => $this->activo,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
+    }
+}
