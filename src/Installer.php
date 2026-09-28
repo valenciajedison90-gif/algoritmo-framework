@@ -211,7 +211,7 @@ class Installer
   \033[1;37m¿Qué sucederá en la primera pantalla? (Detección tipo Moodle):\033[0m
   - El sistema detectará que la base de datos no está conectada o migrada
     y abrirá automáticamente el \033[1;33mAsistente de Instalación Web\033[0m.
-  - Podrá seleccionar el motor de BD (MySQL, PostgreSQL, SQLite, SQL Server).
+  - Podrá seleccionar el motor de BD (MySQL, MariaDB, PostgreSQL, SQL Server u Oracle).
   - Probar la conexión en tiempo real con el botón \033[1;32m"⚡ Probar Conexión"\033[0m.
   - Crear la base de datos automáticamente si aún no existe en el servidor.
   - Ejecutar las migraciones y registrar su Empresa y Super Administrador.

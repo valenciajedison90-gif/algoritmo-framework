@@ -15,14 +15,28 @@ use PDO;
 use Throwable;
 
 /**
- * Servicio Central de Instalación y Detección de Base de Datos
+ * Servicio Central de Instalación y Conexión Multi-Base de Datos
  *
- * Implementa el flujo guiado estilo Moodle para instalación desatendida,
- * diagnóstico del sistema, configuración dinámica de bases de datos y
- * creación del primer administrador mediante arquitectura limpia.
+ * Soporta motores empresariales cliente-servidor:
+ * - MySQL
+ * - MariaDB
+ * - PostgreSQL
+ * - Microsoft SQL Server (SQLSRV)
+ * - Oracle Database (OCI)
  */
 class InstallService
 {
+    /**
+     * Puertos estándar por motor de base de datos
+     */
+    public const DEFAULT_PORTS = [
+        'mysql' => 3306,
+        'mariadb' => 3306,
+        'pgsql' => 5432,
+        'sqlsrv' => 1433,
+        'oracle' => 1521,
+    ];
+
     /**
      * Determina si el sistema se encuentra completamente instalado y operativo.
      */
@@ -50,7 +64,7 @@ class InstallService
     /**
      * Realiza un diagnóstico completo de requisitos de servidor, extensiones y permisos.
      *
-     * @return array{allPassed: bool, php: array, extensions: array, permissions: array}
+     * @return array{allPassed: bool, php: array, extensions: array, drivers: array, permissions: array}
      */
     public function checkRequirements(): array
     {
@@ -59,14 +73,14 @@ class InstallService
         $phpPassed = version_compare($currentPhpVersion, $minPhpVersion, '>=');
 
         $requiredExtensions = [
-            'pdo' => 'PDO (PHP Data Objects)',
+            'pdo' => 'PDO (PHP Data Objects Core)',
             'mbstring' => 'Mbstring Multibyte String',
-            'openssl' => 'OpenSSL Criptografía',
-            'tokenizer' => 'Tokenizer Parser',
-            'xml' => 'XML Parser',
+            'openssl' => 'OpenSSL Criptografía Segura',
+            'tokenizer' => 'Tokenizer PHP Parser',
+            'xml' => 'XML / DOM Parser',
             'ctype' => 'Ctype Checking',
-            'json' => 'JSON Parser',
-            'bcmath' => 'BCMath Arbitrary Precision',
+            'json' => 'JSON Parser & Encoder',
+            'bcmath' => 'BCMath Precisión Arbitraria',
             'curl' => 'cURL Client',
         ];
 
@@ -84,12 +98,24 @@ class InstallService
             }
         }
 
-        // Detectar drivers de base de datos disponibles
+        // Detectar controladores de bases de datos empresariales
         $drivers = [
-            'pdo_mysql' => extension_loaded('pdo_mysql'),
-            'pdo_pgsql' => extension_loaded('pdo_pgsql'),
-            'pdo_sqlite' => extension_loaded('pdo_sqlite'),
-            'pdo_sqlsrv' => extension_loaded('pdo_sqlsrv'),
+            'pdo_mysql' => [
+                'name' => 'MySQL / MariaDB',
+                'loaded' => extension_loaded('pdo_mysql'),
+            ],
+            'pdo_pgsql' => [
+                'name' => 'PostgreSQL',
+                'loaded' => extension_loaded('pdo_pgsql'),
+            ],
+            'pdo_sqlsrv' => [
+                'name' => 'Microsoft SQL Server',
+                'loaded' => extension_loaded('pdo_sqlsrv') || extension_loaded('sqlsrv'),
+            ],
+            'pdo_oci' => [
+                'name' => 'Oracle Database',
+                'loaded' => extension_loaded('pdo_oci') || extension_loaded('oci8'),
+            ],
         ];
 
         $paths = [
@@ -130,7 +156,7 @@ class InstallService
     }
 
     /**
-     * Prueba una conexión a base de datos de manera dinámica usando PDO.
+     * Prueba una conexión a base de datos de manera dinámica usando PDO nativo.
      *
      * @param array<string, mixed> $config
      * @return array{success: bool, message: string, can_create_db?: bool}
@@ -139,40 +165,21 @@ class InstallService
     {
         $driver = $config['driver'] ?? 'mysql';
         $host = $config['host'] ?? '127.0.0.1';
-        $port = (int) ($config['port'] ?? ($driver === 'pgsql' ? 5432 : 3306));
-        $database = $config['database'] ?? '';
-        $username = $config['username'] ?? '';
-        $password = $config['password'] ?? '';
+        $port = (int) ($config['port'] ?? (self::DEFAULT_PORTS[$driver] ?? 3306));
+        $database = trim((string) ($config['database'] ?? ''));
+        $username = trim((string) ($config['username'] ?? ''));
+        $password = (string) ($config['password'] ?? '');
 
-        if ($driver === 'sqlite') {
-            try {
-                $dbPath = $database ?: database_path('database.sqlite');
-                if (!file_exists($dbPath)) {
-                    $dir = dirname($dbPath);
-                    if (!is_dir($dir)) {
-                        mkdir($dir, 0755, true);
-                    }
-                    touch($dbPath);
-                }
-                new PDO("sqlite:{$dbPath}", null, null, [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_TIMEOUT => 5,
-                ]);
-                return [
-                    'success' => true,
-                    'message' => "Conexión SQLite verificada correctamente en {$dbPath}.",
-                ];
-            } catch (Throwable $e) {
-                return [
-                    'success' => false,
-                    'message' => 'Error SQLite: ' . $e->getMessage(),
-                ];
-            }
+        if (empty($database)) {
+            return [
+                'success' => false,
+                'message' => 'El nombre de la base de datos o servicio es obligatorio.',
+            ];
         }
 
         // Intento 1: Conexión directa a la base de datos especificada
         try {
-            $dsn = "{$driver}:host={$host};port={$port};dbname={$database}";
+            $dsn = $this->buildDsn($driver, $host, $port, $database);
             new PDO($dsn, $username, $password, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_TIMEOUT => 5,
@@ -180,20 +187,23 @@ class InstallService
 
             return [
                 'success' => true,
-                'message' => "¡Conexión exitosa! El servidor y la base de datos '{$database}' están accesibles.",
+                'message' => "¡Conexión exitosa! El servidor de base de datos ({$driver}) y la base de datos '{$database}' están accesibles.",
             ];
         } catch (Throwable $e) {
             $errorCode = $e->getCode();
             $errorMessage = $e->getMessage();
 
-            // Error 1049: Unknown database (MySQL)
-            // Error 7 / SQLSTATE 3D000: database does not exist (PostgreSQL)
-            if ($errorCode === 1049 || str_contains($errorMessage, 'Unknown database') || str_contains($errorMessage, 'does not exist')) {
-                // Verificar si al menos podemos conectarnos al servidor sin especificar base de datos
+            // Detectar si el servidor respondió pero la base de datos no existe
+            $isMissingDb = (
+                $errorCode === 1049 ||
+                str_contains($errorMessage, 'Unknown database') ||
+                str_contains($errorMessage, 'does not exist') ||
+                str_contains($errorMessage, 'Cannot open database')
+            );
+
+            if ($isMissingDb && in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlsrv'], true)) {
                 try {
-                    $serverDsn = $driver === 'pgsql'
-                        ? "pgsql:host={$host};port={$port};dbname=postgres"
-                        : "mysql:host={$host};port={$port}";
+                    $serverDsn = $this->buildServerDsn($driver, $host, $port);
 
                     new PDO($serverDsn, $username, $password, [
                         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -203,16 +213,16 @@ class InstallService
                     return [
                         'success' => false,
                         'can_create_db' => true,
-                        'message' => "La base de datos '{$database}' no existe en el servidor, pero las credenciales son válidas. Puedes marcar la opción para crearla automáticamente.",
+                        'message' => "El servidor ({$driver}) respondió y las credenciales son correctas, pero la base de datos '{$database}' no existe. Puedes marcar la casilla para crearla automáticamente.",
                     ];
                 } catch (Throwable) {
-                    // Falló también al servidor base
+                    // Falló al conectar al servidor base
                 }
             }
 
             return [
                 'success' => false,
-                'message' => "No se pudo conectar a la base de datos: {$errorMessage}",
+                'message' => "Fallo de conexión ({$driver}): {$errorMessage}",
             ];
         }
     }
@@ -227,17 +237,14 @@ class InstallService
     {
         $driver = $config['driver'] ?? 'mysql';
         $host = $config['host'] ?? '127.0.0.1';
-        $port = (int) ($config['port'] ?? ($driver === 'pgsql' ? 5432 : 3306));
-        $database = $config['database'] ?? '';
-        $username = $config['username'] ?? '';
-        $password = $config['password'] ?? '';
+        $port = (int) ($config['port'] ?? (self::DEFAULT_PORTS[$driver] ?? 3306));
+        $database = trim((string) ($config['database'] ?? ''));
+        $username = trim((string) ($config['username'] ?? ''));
+        $password = (string) ($config['password'] ?? '');
 
-        if ($driver === 'sqlite') {
-            $dbPath = $database ?: database_path('database.sqlite');
-            if (!file_exists($dbPath)) {
-                @touch($dbPath);
-            }
-            return ['success' => true, 'message' => 'Archivo SQLite verificado.'];
+        $cleanDb = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
+        if (empty($cleanDb)) {
+            return ['success' => false, 'message' => 'Nombre de base de datos inválido.'];
         }
 
         try {
@@ -245,24 +252,33 @@ class InstallService
                 $pdo = new PDO("pgsql:host={$host};port={$port};dbname=postgres", $username, $password, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 ]);
-                $cleanDb = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
                 $pdo->exec("CREATE DATABASE \"{$cleanDb}\"");
+            } elseif ($driver === 'sqlsrv') {
+                $pdo = new PDO("sqlsrv:Server={$host},{$port};Database=master", $username, $password, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                ]);
+                $pdo->exec("CREATE DATABASE [{$cleanDb}]");
+            } elseif ($driver === 'oracle') {
+                return [
+                    'success' => false,
+                    'message' => 'En Oracle la base de datos o PDB debe crearse previamente por el DBA del sistema.',
+                ];
             } else {
+                // MySQL y MariaDB
                 $pdo = new PDO("mysql:host={$host};port={$port}", $username, $password, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 ]);
-                $cleanDb = preg_replace('/[^a-zA-Z0-9_]/', '', $database);
                 $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$cleanDb}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             }
 
             return [
                 'success' => true,
-                'message' => "Base de datos '{$database}' creada con éxito.",
+                'message' => "Base de datos '{$cleanDb}' creada con éxito en el servidor.",
             ];
         } catch (Throwable $e) {
             return [
                 'success' => false,
-                'message' => 'No se pudo crear la base de datos: ' . $e->getMessage(),
+                'message' => 'No se pudo crear la base de datos automáticamente: ' . $e->getMessage(),
             ];
         }
     }
@@ -276,13 +292,16 @@ class InstallService
     {
         $driver = $config['driver'] ?? 'mysql';
         $host = $config['host'] ?? '127.0.0.1';
-        $port = (string) ($config['port'] ?? ($driver === 'pgsql' ? '5432' : '3306'));
+        $port = (string) ($config['port'] ?? (self::DEFAULT_PORTS[$driver] ?? '3306'));
         $database = (string) ($config['database'] ?? 'algoritmo_db');
         $username = (string) ($config['username'] ?? 'root');
         $password = (string) ($config['password'] ?? '');
 
+        // En Laravel MariaDB puede operar con driver 'mariadb' o 'mysql'
+        $connectionName = $driver;
+
         $envUpdates = [
-            'DB_CONNECTION' => $driver,
+            'DB_CONNECTION' => $connectionName,
             'DB_HOST' => $host,
             'DB_PORT' => $port,
             'DB_DATABASE' => $database,
@@ -294,17 +313,17 @@ class InstallService
 
         // Actualizar la configuración activa en memoria para el ciclo de vida actual
         config([
-            'database.default' => $driver,
-            "database.connections.{$driver}.host" => $host,
-            "database.connections.{$driver}.port" => (int) $port,
-            "database.connections.{$driver}.database" => $database,
-            "database.connections.{$driver}.username" => $username,
-            "database.connections.{$driver}.password" => $password,
+            'database.default' => $connectionName,
+            "database.connections.{$connectionName}.host" => $host,
+            "database.connections.{$connectionName}.port" => (int) $port,
+            "database.connections.{$connectionName}.database" => $database,
+            "database.connections.{$connectionName}.username" => $username,
+            "database.connections.{$connectionName}.password" => $password,
         ]);
 
         try {
-            DB::purge($driver);
-            DB::reconnect($driver);
+            DB::purge($connectionName);
+            DB::reconnect($connectionName);
         } catch (Throwable) {
             // Continúa para permitir ejecución subsecuente
         }
@@ -436,6 +455,31 @@ class InstallService
         ], $data);
 
         file_put_contents($lockPath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Construye la cadena DSN específica según el motor de base de datos
+     */
+    private function buildDsn(string $driver, string $host, int $port, string $database): string
+    {
+        return match ($driver) {
+            'pgsql' => "pgsql:host={$host};port={$port};dbname={$database}",
+            'sqlsrv' => "sqlsrv:Server={$host},{$port};Database={$database}",
+            'oracle' => "oci:dbname=//{$host}:{$port}/{$database};charset=AL32UTF8",
+            default => "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4",
+        };
+    }
+
+    /**
+     * Construye la cadena DSN del servidor base sin base de datos específica
+     */
+    private function buildServerDsn(string $driver, string $host, int $port): string
+    {
+        return match ($driver) {
+            'pgsql' => "pgsql:host={$host};port={$port};dbname=postgres",
+            'sqlsrv' => "sqlsrv:Server={$host},{$port};Database=master",
+            default => "mysql:host={$host};port={$port}",
+        };
     }
 
     /**

@@ -7,7 +7,7 @@
     <div class="p-6 sm:p-8 border-b border-slate-100">
         <h2 class="text-xl font-bold text-slate-900">Paso 1: Diagnóstico y Requisitos del Servidor</h2>
         <p class="text-sm text-slate-500 mt-1">
-            Verificación automática del entorno de ejecución PHP, extensiones necesarias y permisos de escritura en disco antes de configurar la base de datos.
+            Verificación automática del entorno de ejecución PHP, extensiones necesarias y permisos de escritura en disco antes de configurar la base de datos empresarial.
         </p>
     </div>
 
@@ -24,7 +24,7 @@
                     @endif
                     <div>
                         <p class="text-sm font-semibold text-slate-900">PHP {{ $requirements['php']['current'] }}</p>
-                        <p class="text-xs text-slate-500">Mínimo requerido: PHP {{ $requirements['php']['required'] }}</p>
+                        <p class="text-xs text-slate-500">Mínimo requerido para Laravel 12: PHP {{ $requirements['php']['required'] }}</p>
                     </div>
                 </div>
                 <span class="text-xs font-semibold px-2.5 py-1 rounded-full {{ $requirements['php']['passed'] ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
@@ -55,37 +55,22 @@
             </div>
         </div>
 
-        <!-- 3. Drivers de Base de Datos Detectados -->
+        <!-- 3. Controladores de Bases de Datos Empresariales Soportados -->
         <div>
-            <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Controladores de Base de Datos Soportados</h3>
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Controladores de Base de Datos Detectados</h3>
+                <span class="text-xs text-slate-400">Se requiere al menos uno activo</span>
+            </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div class="p-3 rounded-xl border text-center {{ $requirements['drivers']['pdo_mysql'] ? 'bg-brand-50/50 border-brand-200' : 'bg-slate-50 border-slate-200 opacity-60' }}">
-                    <div class="text-xs font-bold text-slate-900">MySQL / MariaDB</div>
-                    <div class="text-[11px] mt-1 {{ $requirements['drivers']['pdo_mysql'] ? 'text-emerald-600 font-semibold' : 'text-slate-400' }}">
-                        {{ $requirements['drivers']['pdo_mysql'] ? '✓ Disponible' : 'No instalado' }}
+                @foreach($requirements['drivers'] as $key => $driver)
+                    <div class="p-3.5 rounded-xl border text-center {{ $driver['loaded'] ? 'bg-emerald-50/40 border-emerald-200' : 'bg-slate-50 border-slate-200 opacity-60' }}">
+                        <div class="text-xs font-bold text-slate-900">{{ $driver['name'] }}</div>
+                        <div class="text-[11px] mt-1 font-semibold {{ $driver['loaded'] ? 'text-emerald-700' : 'text-slate-400' }}">
+                            {{ $driver['loaded'] ? '✓ Disponible' : 'No instalado' }}
+                        </div>
+                        <div class="text-[10px] text-slate-400 mt-0.5 font-mono">({{ $key }})</div>
                     </div>
-                </div>
-
-                <div class="p-3 rounded-xl border text-center {{ $requirements['drivers']['pdo_pgsql'] ? 'bg-brand-50/50 border-brand-200' : 'bg-slate-50 border-slate-200 opacity-60' }}">
-                    <div class="text-xs font-bold text-slate-900">PostgreSQL</div>
-                    <div class="text-[11px] mt-1 {{ $requirements['drivers']['pdo_pgsql'] ? 'text-emerald-600 font-semibold' : 'text-slate-400' }}">
-                        {{ $requirements['drivers']['pdo_pgsql'] ? '✓ Disponible' : 'No instalado' }}
-                    </div>
-                </div>
-
-                <div class="p-3 rounded-xl border text-center {{ $requirements['drivers']['pdo_sqlite'] ? 'bg-brand-50/50 border-brand-200' : 'bg-slate-50 border-slate-200 opacity-60' }}">
-                    <div class="text-xs font-bold text-slate-900">SQLite</div>
-                    <div class="text-[11px] mt-1 {{ $requirements['drivers']['pdo_sqlite'] ? 'text-emerald-600 font-semibold' : 'text-slate-400' }}">
-                        {{ $requirements['drivers']['pdo_sqlite'] ? '✓ Disponible' : 'No instalado' }}
-                    </div>
-                </div>
-
-                <div class="p-3 rounded-xl border text-center {{ $requirements['drivers']['pdo_sqlsrv'] ? 'bg-brand-50/50 border-brand-200' : 'bg-slate-50 border-slate-200 opacity-60' }}">
-                    <div class="text-xs font-bold text-slate-900">SQL Server</div>
-                    <div class="text-[11px] mt-1 {{ $requirements['drivers']['pdo_sqlsrv'] ? 'text-emerald-600 font-semibold' : 'text-slate-400' }}">
-                        {{ $requirements['drivers']['pdo_sqlsrv'] ? '✓ Disponible' : 'No instalado' }}
-                    </div>
-                </div>
+                @endforeach
             </div>
         </div>
 
@@ -121,7 +106,7 @@
             @if($requirements['allPassed'])
                 <span class="text-emerald-600 font-semibold flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    Todos los requisitos se cumplen correctamente.
+                    Requisitos del servidor validados correctamente.
                 </span>
             @else
                 <span class="text-rose-600 font-semibold">
@@ -132,7 +117,7 @@
 
         <a href="{{ route('install.database') }}" 
            class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all {{ !$requirements['allPassed'] ? 'opacity-50 pointer-events-none' : '' }}">
-            <span>Continuar a Configuración de Base de Datos</span>
+            <span>Continuar a Selección de Base de Datos</span>
             <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>

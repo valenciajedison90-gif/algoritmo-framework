@@ -13,11 +13,11 @@ use Illuminate\View\View;
 use Throwable;
 
 /**
- * Controlador del Asistente de Instalación Web (tipo Moodle)
+ * Controlador del Asistente de Instalación Web Multi-Base de Datos (tipo Moodle)
  *
  * Guía al usuario paso a paso:
- * 1. Diagnóstico de requisitos y permisos
- * 2. Detección, prueba y configuración de Base de Datos
+ * 1. Diagnóstico de requisitos y controladores de base de datos
+ * 2. Detección, prueba y configuración de Base de Datos empresarial (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle)
  * 3. Ejecución de migraciones y registro de Empresa / Administrador inicial
  * 4. Certificación y redirección al Login
  */
@@ -42,10 +42,15 @@ class InstallController extends Controller
      */
     public function databaseForm(): View
     {
+        $envDriver = env('DB_CONNECTION');
+        if ($envDriver === 'sqlite' || empty($envDriver)) {
+            $envDriver = 'mysql';
+        }
+
         $currentConfig = [
-            'driver' => env('DB_CONNECTION', 'mysql'),
+            'driver' => $envDriver,
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
+            'port' => env('DB_PORT', (string) (InstallService::DEFAULT_PORTS[$envDriver] ?? 3306)),
             'database' => env('DB_DATABASE', 'algoritmo_db'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
@@ -60,12 +65,18 @@ class InstallController extends Controller
     public function testDatabase(Request $request): JsonResponse
     {
         $config = $request->validate([
-            'driver' => 'required|string|in:mysql,mariadb,pgsql,sqlite,sqlsrv',
-            'host' => 'nullable|string',
-            'port' => 'nullable|numeric',
+            'driver' => 'required|string|in:mysql,mariadb,pgsql,sqlsrv,oracle',
+            'host' => 'required|string',
+            'port' => 'required|numeric',
             'database' => 'required|string',
-            'username' => 'nullable|string',
+            'username' => 'required|string',
             'password' => 'nullable|string',
+        ], [
+            'driver.in' => 'El motor seleccionado no es compatible. Seleccione MySQL, MariaDB, PostgreSQL, SQL Server u Oracle.',
+            'host.required' => 'El host o dirección del servidor es obligatorio.',
+            'port.required' => 'El puerto de conexión es obligatorio.',
+            'database.required' => 'El nombre de la base de datos o servicio es obligatorio.',
+            'username.required' => 'El usuario de la base de datos es obligatorio.',
         ]);
 
         $test = $this->installService->testDatabaseConnection($config);
@@ -83,13 +94,19 @@ class InstallController extends Controller
     public function saveDatabase(Request $request): RedirectResponse
     {
         $config = $request->validate([
-            'driver' => 'required|string|in:mysql,mariadb,pgsql,sqlite,sqlsrv',
-            'host' => 'nullable|string',
-            'port' => 'nullable|numeric',
+            'driver' => 'required|string|in:mysql,mariadb,pgsql,sqlsrv,oracle',
+            'host' => 'required|string',
+            'port' => 'required|numeric',
             'database' => 'required|string',
-            'username' => 'nullable|string',
+            'username' => 'required|string',
             'password' => 'nullable|string',
             'create_db_if_not_exists' => 'nullable|boolean',
+        ], [
+            'driver.in' => 'Seleccione un motor válido: MySQL, MariaDB, PostgreSQL, SQL Server u Oracle.',
+            'host.required' => 'El host del servidor es obligatorio.',
+            'port.required' => 'El puerto es obligatorio.',
+            'database.required' => 'El nombre de la base de datos es obligatorio.',
+            'username.required' => 'El usuario de la base de datos es obligatorio.',
         ]);
 
         // Si solicitó crear la base de datos si no existe
@@ -97,7 +114,7 @@ class InstallController extends Controller
             $this->installService->createDatabaseIfNotExists($config);
         }
 
-        // Probar conexión real
+        // Probar conexión real antes de persistir
         $test = $this->installService->testDatabaseConnection($config);
 
         if (!$test['success']) {
@@ -108,11 +125,11 @@ class InstallController extends Controller
         $saved = $this->installService->saveDatabaseConfiguration($config);
 
         if (!$saved) {
-            return back()->withInput()->with('error', 'No se pudo escribir en el archivo .env. Verifica los permisos de escritura.');
+            return back()->withInput()->with('error', 'No se pudo escribir en el archivo .env. Verifica los permisos de escritura en disco.');
         }
 
         return redirect()->route('install.setup')
-            ->with('success', '¡Conexión a la Base de Datos configurada exitosamente! Procede con la inicialización del sistema.');
+            ->with('success', "¡Conexión a {$config['driver']} configurada con éxito! Procede a inicializar las tablas.");
     }
 
     /**

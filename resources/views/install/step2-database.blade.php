@@ -1,13 +1,13 @@
 @extends('install.layout', ['currentStep' => 2])
 
-@section('title', 'Paso 2: Conexión de Base de Datos')
+@section('title', 'Paso 2: Conexión Multi-Base de Datos')
 
 @section('content')
 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
     <div class="p-6 sm:p-8 border-b border-slate-100">
-        <h2 class="text-xl font-bold text-slate-900">Paso 2: Configuración de Base de Datos</h2>
+        <h2 class="text-xl font-bold text-slate-900">Paso 2: Conexión de Base de Datos Empresarial</h2>
         <p class="text-sm text-slate-500 mt-1">
-            Ingresa los parámetros de conexión de tu motor de base de datos. Puedes probar la conexión en tiempo real antes de guardar los cambios en el archivo <code class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-xs">.env</code>.
+            Selecciona el motor de base de datos de tu infraestructura (MySQL, MariaDB, PostgreSQL, SQL Server u Oracle). Puedes probar la conexión en tiempo real antes de guardar la configuración en el archivo <code class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-xs font-mono">.env</code>.
         </p>
     </div>
 
@@ -23,44 +23,61 @@
     <form action="{{ route('install.database.save') }}" method="POST" id="db-form">
         @csrf
         <div class="p-6 sm:p-8 space-y-6">
-            <!-- 1. Motor de Base de Datos -->
+            <!-- 1. Selector de Motor de Base de Datos Empresarial -->
             <div>
-                <label for="driver" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                    Motor de Base de Datos (Driver) *
+                <label for="driver" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
+                    Motor de Base de Datos (Gestor RDBMS) *
                 </label>
-                <select name="driver" id="driver" required 
-                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all">
-                    <option value="mysql" {{ old('driver', $currentConfig['driver']) === 'mysql' ? 'selected' : '' }}>MySQL / MariaDB (Recomendado)</option>
-                    <option value="pgsql" {{ old('driver', $currentConfig['driver']) === 'pgsql' ? 'selected' : '' }}>PostgreSQL</option>
-                    <option value="sqlite" {{ old('driver', $currentConfig['driver']) === 'sqlite' ? 'selected' : '' }}>SQLite (Archivo local)</option>
-                    <option value="sqlsrv" {{ old('driver', $currentConfig['driver']) === 'sqlsrv' ? 'selected' : '' }}>Microsoft SQL Server</option>
-                </select>
+                <div class="relative">
+                    <select name="driver" id="driver" required 
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all appearance-none cursor-pointer">
+                        <option value="mysql" {{ old('driver', $currentConfig['driver']) === 'mysql' ? 'selected' : '' }}>
+                            🐬 MySQL Server (Puerto 3306 - Estándar Empresarial Web)
+                        </option>
+                        <option value="mariadb" {{ old('driver', $currentConfig['driver']) === 'mariadb' ? 'selected' : '' }}>
+                            🦭 MariaDB Enterprise (Puerto 3306 - RDBMS Open Source de Alto Desempeño)
+                        </option>
+                        <option value="pgsql" {{ old('driver', $currentConfig['driver']) === 'pgsql' ? 'selected' : '' }}>
+                            🐘 PostgreSQL (Puerto 5432 - Alta Concurrencia y Datos Complejos)
+                        </option>
+                        <option value="sqlsrv" {{ old('driver', $currentConfig['driver']) === 'sqlsrv' ? 'selected' : '' }}>
+                            🏢 Microsoft SQL Server (Puerto 1433 - Entornos Windows / Azure Enterprise)
+                        </option>
+                        <option value="oracle" {{ old('driver', $currentConfig['driver']) === 'oracle' ? 'selected' : '' }}>
+                            🏛️ Oracle Database (Puerto 1521 - Corporativo / SID / Services OCI)
+                        </option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7"></path></svg>
+                    </div>
+                </div>
+                <p id="driver-hint" class="text-xs text-slate-500 mt-1.5"></p>
             </div>
 
             <!-- Campos Red (Host & Port) -->
-            <div id="network-fields" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="sm:col-span-2">
                     <label for="host" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                        Host del Servidor *
+                        Dirección del Servidor / Host *
                     </label>
-                    <input type="text" name="host" id="host" 
+                    <input type="text" name="host" id="host" required
                            value="{{ old('host', $currentConfig['host'] ?: '127.0.0.1') }}" 
-                           placeholder="127.0.0.1 o localhost"
-                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all">
+                           placeholder="127.0.0.1 o localhost o IP"
+                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all font-mono">
                 </div>
 
                 <div>
                     <label for="port" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
-                        Puerto *
+                        Puerto de Conexión *
                     </label>
-                    <input type="number" name="port" id="port" 
+                    <input type="number" name="port" id="port" required
                            value="{{ old('port', $currentConfig['port'] ?: '3306') }}" 
                            placeholder="3306"
-                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all">
+                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all font-mono">
                 </div>
             </div>
 
-            <!-- Nombre de Base de Datos -->
+            <!-- Nombre de Base de Datos o Servicio -->
             <div>
                 <label for="database" id="database-label" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                     Nombre de la Base de Datos *
@@ -68,19 +85,22 @@
                 <input type="text" name="database" id="database" required 
                        value="{{ old('database', $currentConfig['database'] ?: 'algoritmo_db') }}" 
                        placeholder="algoritmo_db"
-                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all">
+                       class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all font-mono">
+                <span id="database-hint" class="text-[11px] text-slate-400 mt-1 block">
+                    Nombre del esquema o base de datos relacional en el servidor.
+                </span>
             </div>
 
             <!-- Campos Credenciales (Usuario & Contraseña) -->
-            <div id="auth-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+                    <label for="username" id="username-label" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                         Usuario de la BD *
                     </label>
-                    <input type="text" name="username" id="username" 
+                    <input type="text" name="username" id="username" required
                            value="{{ old('username', $currentConfig['username'] ?: 'root') }}" 
                            placeholder="root"
-                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all">
+                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all font-mono">
                 </div>
 
                 <div>
@@ -94,13 +114,13 @@
                 </div>
             </div>
 
-            <!-- Opción para Crear la Base de Datos si no existe -->
-            <div id="create-db-option" class="pt-2">
+            <!-- Opción para Crear la Base de Datos automáticamente si no existe -->
+            <div id="create-db-option" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                 <label class="relative flex items-center space-x-3 cursor-pointer">
                     <input type="checkbox" name="create_db_if_not_exists" id="create_db_if_not_exists" value="1" checked 
                            class="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500">
-                    <span class="text-xs text-slate-600">
-                        Crear la base de datos automáticamente en el servidor si aún no existe
+                    <span class="text-xs text-slate-700 font-medium">
+                        Intentar crear la base de datos automáticamente en el servidor si aún no existe
                     </span>
                 </label>
             </div>
@@ -111,12 +131,12 @@
             <div class="flex items-center space-x-3 w-full sm:w-auto">
                 <a href="{{ route('install.index') }}" 
                    class="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-all">
-                    ← Volver a Requisitos
+                    ← Volver a Diagnóstico
                 </a>
 
                 <!-- Botón Probar Conexión (AJAX) -->
                 <button type="button" id="btn-test-connection" 
-                        class="px-4 py-2.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-xl transition-all inline-flex items-center">
+                        class="px-4 py-2.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-xl transition-all inline-flex items-center shadow-sm">
                     <svg id="test-spinner" class="hidden animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-brand-700" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
@@ -142,10 +162,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     const driverSelect = document.getElementById('driver');
     const portInput = document.getElementById('port');
-    const networkFields = document.getElementById('network-fields');
-    const authFields = document.getElementById('auth-fields');
-    const createDbOption = document.getElementById('create-db-option');
+    const dbInput = document.getElementById('database');
     const dbLabel = document.getElementById('database-label');
+    const dbHint = document.getElementById('database-hint');
+    const usernameInput = document.getElementById('username');
+    const driverHint = document.getElementById('driver-hint');
+    const createDbOption = document.getElementById('create-db-option');
+
     const btnTest = document.getElementById('btn-test-connection');
     const testSpinner = document.getElementById('test-spinner');
     const testBtnText = document.getElementById('test-btn-text');
@@ -154,35 +177,39 @@ document.addEventListener('DOMContentLoaded', function () {
     const resultTitle = document.getElementById('test-result-title');
     const resultMessage = document.getElementById('test-result-message');
 
-    // Adaptar campos según motor seleccionado
+    const portMap = {
+        'mysql': { port: 3306, user: 'root', label: 'Nombre de la Base de Datos *', hint: 'Puerto por defecto: 3306. Requiere extensión pdo_mysql.' },
+        'mariadb': { port: 3306, user: 'root', label: 'Nombre de la Base de Datos *', hint: 'Puerto por defecto: 3306. Totalmente compatible con MySQL.' },
+        'pgsql': { port: 5432, user: 'postgres', label: 'Nombre de la Base de Datos *', hint: 'Puerto por defecto: 5432. Requiere extensión pdo_pgsql.' },
+        'sqlsrv': { port: 1433, user: 'sa', label: 'Nombre de la Base de Datos *', hint: 'Puerto por defecto: 1433. Requiere drivers Microsoft SQLSRV.' },
+        'oracle': { port: 1521, user: 'SYSTEM', label: 'Nombre del Servicio / SID / PDB *', hint: 'Puerto por defecto: 1521. Requiere extensión pdo_oci u OCI8.' },
+    };
+
     function handleDriverChange() {
         const driver = driverSelect.value;
-        if (driver === 'sqlite') {
-            networkFields.classList.add('hidden');
-            authFields.classList.add('hidden');
-            createDbOption.classList.add('hidden');
-            dbLabel.textContent = 'Ruta del Archivo SQLite *';
-            if (!document.getElementById('database').value.includes('database.sqlite')) {
-                document.getElementById('database').value = 'database/database.sqlite';
-            }
-        } else {
-            networkFields.classList.remove('hidden');
-            authFields.classList.remove('hidden');
-            createDbOption.classList.remove('hidden');
-            dbLabel.textContent = 'Nombre de la Base de Datos *';
+        const config = portMap[driver] || portMap['mysql'];
 
-            if (driver === 'pgsql') {
-                if (portInput.value === '3306' || !portInput.value) portInput.value = '5432';
-            } else if (driver === 'mysql' || driver === 'mariadb') {
-                if (portInput.value === '5432' || !portInput.value) portInput.value = '3306';
-            }
+        portInput.value = config.port;
+        dbLabel.textContent = config.label;
+        driverHint.textContent = config.hint;
+
+        if (!usernameInput.value || usernameInput.value === 'root' || usernameInput.value === 'postgres' || usernameInput.value === 'sa' || usernameInput.value === 'SYSTEM') {
+            usernameInput.value = config.user;
+        }
+
+        if (driver === 'oracle') {
+            createDbOption.classList.add('hidden');
+            dbHint.textContent = 'Ingresa el Service Name (ej. ORCL, XE, XEPDB1) configurado en el Listener de Oracle.';
+        } else {
+            createDbOption.classList.remove('hidden');
+            dbHint.textContent = 'Nombre del esquema o base de datos relacional en el servidor.';
         }
     }
 
     driverSelect.addEventListener('change', handleDriverChange);
     handleDriverChange();
 
-    // Probar conexión AJAX
+    // Probar conexión AJAX en vivo
     btnTest.addEventListener('click', async function () {
         const formData = new FormData(document.getElementById('db-form'));
         const payload = Object.fromEntries(formData.entries());
