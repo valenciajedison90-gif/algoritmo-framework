@@ -1,1 +1,1 @@
-OWASP Top10, CSRF, XSS y consultas parametrizadas.
+OWASP, CSRF, XSS, Argon2id, RateLimit.

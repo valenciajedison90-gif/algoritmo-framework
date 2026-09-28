@@ -1,3 +1,6 @@
 <?php
 namespace App\DAL;
-abstract class BaseDAL{}
+use Illuminate\Support\Facades\DB;
+abstract class BaseDAL{
+ protected function db(){return DB::connection();}
+}

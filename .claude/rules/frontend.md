@@ -1,0 +1,1 @@
+Tailwind, Blade, Alpine, SweetAlert.

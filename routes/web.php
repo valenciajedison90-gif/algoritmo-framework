@@ -1,2 +1,1 @@
-<?php
-// Rutas del Core
+<?php // Agregar rutas de Login, Empresas y Usuarios

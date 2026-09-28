@@ -1,2 +1,1 @@
-<?php
-return ['company'=>'Algoritmo Framework'];
+<?php return ["company"=>"Algoritmo Framework","theme"=>"light"];

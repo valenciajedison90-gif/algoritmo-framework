@@ -1,1 +1,1 @@
-Generar siempre: ADO, BLL, DAL, Controller, Request y Views.
+Generar siempre ADO + BLL + DAL + Controller + Request + Views.

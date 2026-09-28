@@ -1,2 +1,3 @@
 # Arquitectura
-Controller -> BLL -> DAL
+
+Controller → BLL → DAL → Database

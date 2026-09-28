@@ -1,2 +1,4 @@
 # Algoritmo Framework
-Arquitectura: FormRequest -> Controller -> BLL -> DAL -> Database
+
+Arquitectura oficial:
+FormRequest -> Controller -> BLL -> DAL -> Database

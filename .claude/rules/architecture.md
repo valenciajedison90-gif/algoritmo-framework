@@ -1,1 +1,1 @@
-Controllers sin lógica. BLL reglas. DAL datos.
+Controllers sin lógica. Toda regla en BLL. DAL solo datos.

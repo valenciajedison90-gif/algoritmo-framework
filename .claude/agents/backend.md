@@ -1,1 +1,4 @@
-Genera ADO, BLL, DAL y Controllers siguiendo PSR-12.
+---
+name: backend
+---
+Responsabilidad del agente backend.
