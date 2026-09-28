@@ -115,7 +115,10 @@ class Installer
         $sourceRoutes = $this->coreDir . DIRECTORY_SEPARATOR . 'routes' . DIRECTORY_SEPARATOR . 'web.php';
         MergeConfig::mergeRoutes($targetRoutes, $sourceRoutes);
 
-        Console::success("Configuraciones y rutas web fusionadas correctamente.");
+        // Registrar Middleware de Detección de Instalación y Base de Datos (tipo Moodle)
+        MergeConfig::registerMiddleware($this->laravelRoot, 'App\Http\Middleware\EnsureSystemIsInstalled');
+
+        Console::success("Configuraciones, middleware de instalación y rutas web fusionadas correctamente.");
     }
 
     protected function actualizarComposerJson(): void
@@ -156,12 +159,24 @@ class Installer
 
     protected function ejecutarMigraciones(): void
     {
-        Console::info("Ejecutando migraciones y seeders...");
+        Console::info("Comprobando base de datos y ejecutando migraciones...");
         $exitCode = Composer::run('php artisan migrate:fresh --seed --force', $this->laravelRoot);
         if ($exitCode === 0) {
-            Console::success("Base de datos migrada y alimentada con datos iniciales.");
+            $lockDir = $this->laravelRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'framework';
+            if (!is_dir($lockDir)) {
+                @mkdir($lockDir, 0755, true);
+            }
+            $payload = [
+                'installed' => true,
+                'timestamp' => time(),
+                'date' => date('Y-m-d H:i:s'),
+                'version' => '2.0.0',
+                'mode' => 'cli_installer',
+            ];
+            @file_put_contents($lockDir . DIRECTORY_SEPARATOR . 'installed.lock', json_encode($payload, JSON_PRETTY_PRINT));
+            Console::success("Base de datos migrada y certificada con bloqueo installed.lock.");
         } else {
-            Console::warning("Revise la conexión a la base de datos en su archivo .env y ejecute: php artisan migrate --seed");
+            Console::warning("No se pudo conectar a la base de datos por CLI. El Asistente Web (/install) le permitirá configurarla interactivamente al iniciar el servidor.");
         }
     }
 
@@ -175,18 +190,20 @@ class Installer
   Puede iniciar el servidor de desarrollo ejecutando:
   \033[1;33mphp artisan serve\033[0m
 
-  Acceda a la URL:
-  \033[1;36mhttp://127.0.0.1:8000/login\033[0m
+  \033[1;37mDetección Inteligente de Base de Datos (tipo Moodle):\033[0m
+  - Si la base de datos aún no está conectada, al abrir el navegador en
+    \033[1;36mhttp://127.0.0.1:8000\033[0m el sistema abrirá automáticamente el
+    \033[1;33mAsistente de Instalación Web\033[0m para probar la conexión en tiempo real,
+    crear la base de datos y configurar el primer Administrador.
 
-  Credenciales de acceso inicial:
+  - Si la base de datos ya está conectada y migrada:
+    Acceda directamente a: \033[1;36mhttp://127.0.0.1:8000/login\033[0m
+
+  Credenciales por defecto (si ejecutó seeders):
   ------------------------------------------------------------------
   \033[1;37mSuper Administrador:\033[0m
   Usuario: \033[1;32madmin@algoritmo.com\033[0m
-  Clave:   \033[1;32mpassword123\033[0m
-
-  \033[1;37mOperador CHEC Demo:\033[0m
-  Usuario: \033[1;32moperador@chec.com.co\033[0m
-  Clave:   \033[1;32mpassword123\033[0m
+  Clave:   \033[1;32madmin123\033[0m
 ====================================================================
 TXT;
         echo $credenciales . PHP_EOL;

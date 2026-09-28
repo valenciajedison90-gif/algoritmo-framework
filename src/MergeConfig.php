@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Algoritmo\Installer;
 
 /**
- * Fusión inteligente de archivos de configuración, variables de entorno y package.json.
+ * Fusión inteligente de archivos de configuración, variables de entorno, middleware y package.json.
  */
 class MergeConfig
 {
@@ -39,6 +39,41 @@ class MergeConfig
 
         file_put_contents($envPath, $envContent);
         return true;
+    }
+
+    /**
+     * Registra un middleware web global en bootstrap/app.php de Laravel 12.
+     */
+    public static function registerMiddleware(string $laravelRoot, string $middlewareClass): bool
+    {
+        $appPath = rtrim($laravelRoot, '/\\') . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'app.php';
+        if (!file_exists($appPath)) {
+            return false;
+        }
+
+        $content = (string) file_get_contents($appPath);
+        $cleanClass = ltrim($middlewareClass, '\\');
+
+        if (str_contains($content, $cleanClass)) {
+            return true;
+        }
+
+        $pattern = '/->withMiddleware\s*\(\s*function\s*\(\s*Middleware\s*\$middleware\s*\)\s*\{([^}]*)\}\s*\)/s';
+        if (preg_match($pattern, $content, $matches)) {
+            $inner = trim($matches[1]);
+            $appendCode = "\n        \$middleware->web(append: [\n            \\{$cleanClass}::class,\n        ]);\n    ";
+
+            if (!empty($inner) && $inner !== '//') {
+                $appendCode = "\n        {$inner}\n        \$middleware->web(append: [\n            \\{$cleanClass}::class,\n        ]);\n    ";
+            }
+
+            $newSection = "->withMiddleware(function (Middleware \$middleware) {{$appendCode}})";
+            $newContent = preg_replace($pattern, $newSection, $content);
+            file_put_contents($appPath, $newContent);
+            return true;
+        }
+
+        return false;
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,17 @@ use Illuminate\Support\Facades\Route;
 | FormRequest -> Controller -> ADO -> BLL -> DAL -> DB
 |
 */
+
+// Asistente de Instalación y Conexión Web (tipo Moodle)
+Route::prefix('install')->name('install.')->group(function () {
+    Route::get('/', [InstallController::class, 'index'])->name('index');
+    Route::get('/database', [InstallController::class, 'databaseForm'])->name('database');
+    Route::post('/database/test', [InstallController::class, 'testDatabase'])->name('database.test');
+    Route::post('/database', [InstallController::class, 'saveDatabase'])->name('database.save');
+    Route::get('/setup', [InstallController::class, 'setupForm'])->name('setup');
+    Route::post('/setup', [InstallController::class, 'executeSetup'])->name('setup.execute');
+    Route::get('/finish', [InstallController::class, 'finish'])->name('finish');
+});
 
 // Rutas Públicas / Autenticación
 Route::middleware('guest')->group(function () {
