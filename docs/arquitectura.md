@@ -1,0 +1,2 @@
+# Arquitectura
+Controller -> BLL -> DAL

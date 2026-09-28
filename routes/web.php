@@ -1,0 +1,2 @@
+<?php
+// Rutas del Core

@@ -1,0 +1,1 @@
+window.Mensaje=(m)=>console.log(m);
