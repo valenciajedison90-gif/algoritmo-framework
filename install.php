@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 /**
  * Instalador Oficial de Algoritmo Framework para Laravel 12.
- * Ejecución desde la raíz de Laravel:
- * php install.php
- * o
- * php .algoritmo/install.php
+ * 
+ * Flujo oficial recomendado:
+ *   composer create-project laravel/laravel MiERP
+ *   cd MiERP
+ *   git clone https://github.com/valenciajedison90-gif/algoritmo-framework.git .algoritmo
+ *   php .algoritmo/install.php
  */
 
 require_once __DIR__ . '/src/Console.php';
@@ -26,5 +28,5 @@ if (!file_exists($laravelRoot . DIRECTORY_SEPARATOR . 'artisan') && file_exists(
     $laravelRoot = dirname($laravelRoot);
 }
 
-$installer = new Installer($coreDir, $laravelRoot);
+$installer = new Installer($coreDir, $laravelRoot, $argv ?? []);
 $installer->run();

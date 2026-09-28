@@ -11,11 +11,13 @@ class Installer
 {
     protected string $coreDir;
     protected string $laravelRoot;
+    protected array $args;
 
-    public function __construct(string $coreDir, string $laravelRoot)
+    public function __construct(string $coreDir, string $laravelRoot, array $args = [])
     {
         $this->coreDir = rtrim($coreDir, '/\\');
         $this->laravelRoot = rtrim($laravelRoot, '/\\');
+        $this->args = $args;
     }
 
     public function run(): void
@@ -54,12 +56,12 @@ class Installer
         Console::step(8, 'Verificando clave de aplicación (php artisan key:generate)');
         $this->ejecutarKeyGenerate();
 
-        // Paso 9: Ejecutar migrate --seed
-        Console::step(9, 'Ejecutando migraciones y seeders de base de datos');
+        // Paso 9: Verificación de Base de Datos y Asistente Web
+        Console::step(9, 'Preparando Asistente de Base de Datos Web (tipo Moodle)');
         $this->ejecutarMigraciones();
 
-        // Paso 10: Mostrar credenciales
-        Console::step(10, 'Instalación completada exitosamente');
+        // Paso 10: Mostrar resumen e instrucciones
+        Console::step(10, 'Instalación de Core completada exitosamente');
         $this->mostrarCredenciales();
     }
 
@@ -67,7 +69,7 @@ class Installer
     {
         $artisanPath = $this->laravelRoot . DIRECTORY_SEPARATOR . 'artisan';
         if (!file_exists($artisanPath)) {
-            Console::error("No se encontró el archivo 'artisan'. Asegúrese de ejecutar el instalador desde la raíz de Laravel 12.");
+            Console::error("No se encontró el archivo 'artisan'. Asegúrese de ejecutar el instalador desde la raíz del proyecto Laravel.");
             exit(1);
         }
         Console::success("Proyecto Laravel 12 verificado en: {$this->laravelRoot}");
@@ -100,12 +102,11 @@ class Installer
 
     protected function fusionarConfiguraciones(): void
     {
-        // Variables de entorno para Algoritmo Framework
+        // Variables base de entorno para Algoritmo Framework
         $envVars = [
             'APP_NAME' => '"Algoritmo Framework"',
             'APP_ENV' => 'local',
             'APP_DEBUG' => 'true',
-            'DB_CONNECTION' => 'sqlite',
         ];
 
         MergeConfig::updateEnv($this->laravelRoot, $envVars);
@@ -159,24 +160,32 @@ class Installer
 
     protected function ejecutarMigraciones(): void
     {
-        Console::info("Comprobando base de datos y ejecutando migraciones...");
-        $exitCode = Composer::run('php artisan migrate:fresh --seed --force', $this->laravelRoot);
-        if ($exitCode === 0) {
-            $lockDir = $this->laravelRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'framework';
-            if (!is_dir($lockDir)) {
-                @mkdir($lockDir, 0755, true);
+        $forceCli = in_array('--seed', $this->args, true) || in_array('--migrate', $this->args, true);
+
+        if ($forceCli) {
+            Console::info("Modo CLI activado: Ejecutando migraciones y seeders de base de datos...");
+            $exitCode = Composer::run('php artisan migrate:fresh --seed --force', $this->laravelRoot);
+            if ($exitCode === 0) {
+                $lockDir = $this->laravelRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'framework';
+                if (!is_dir($lockDir)) {
+                    @mkdir($lockDir, 0755, true);
+                }
+                $payload = [
+                    'installed' => true,
+                    'timestamp' => time(),
+                    'date' => date('Y-m-d H:i:s'),
+                    'version' => '2.0.0',
+                    'mode' => 'cli_installer',
+                ];
+                @file_put_contents($lockDir . DIRECTORY_SEPARATOR . 'installed.lock', json_encode($payload, JSON_PRETTY_PRINT));
+                Console::success("Base de datos migrada y certificada con bloqueo installed.lock.");
+            } else {
+                Console::warning("No se pudo conectar a la base de datos por CLI. El Asistente Web (/install) le permitirá configurarla interactivamente al iniciar el servidor.");
             }
-            $payload = [
-                'installed' => true,
-                'timestamp' => time(),
-                'date' => date('Y-m-d H:i:s'),
-                'version' => '2.0.0',
-                'mode' => 'cli_installer',
-            ];
-            @file_put_contents($lockDir . DIRECTORY_SEPARATOR . 'installed.lock', json_encode($payload, JSON_PRETTY_PRINT));
-            Console::success("Base de datos migrada y certificada con bloqueo installed.lock.");
         } else {
-            Console::warning("No se pudo conectar a la base de datos por CLI. El Asistente Web (/install) le permitirá configurarla interactivamente al iniciar el servidor.");
+            Console::info("Middleware EnsureSystemIsInstalled activado.");
+            Console::info("El Asistente Web (/install) se ejecutará automáticamente en la primera pantalla del navegador.");
+            Console::success("Detección inteligente de base de datos configurada.");
         }
     }
 
@@ -187,23 +196,26 @@ class Installer
 ====================================================================
            ¡ALGORITMO FRAMEWORK INSTALADO CON ÉXITO!
 ====================================================================\033[0m
-  Puede iniciar el servidor de desarrollo ejecutando:
-  \033[1;33mphp artisan serve\033[0m
+  El Core de Algoritmo Framework (ADO / BLL / DAL) y el Asistente Web
+  tipo Moodle han sido integrados correctamente en:
+  \033[1;36m{$this->laravelRoot}\033[0m
 
-  \033[1;37mDetección Inteligente de Base de Datos (tipo Moodle):\033[0m
-  - Si la base de datos aún no está conectada, al abrir el navegador en
-    \033[1;36mhttp://127.0.0.1:8000\033[0m el sistema abrirá automáticamente el
-    \033[1;33mAsistente de Instalación Web\033[0m para probar la conexión en tiempo real,
-    crear la base de datos y configurar el primer Administrador.
-
-  - Si la base de datos ya está conectada y migrada:
-    Acceda directamente a: \033[1;36mhttp://127.0.0.1:8000/login\033[0m
-
-  Credenciales por defecto (si ejecutó seeders):
+  \033[1;33mSIGUIENTES PASOS PARA INICIAR EL SISTEMA:\033[0m
   ------------------------------------------------------------------
-  \033[1;37mSuper Administrador:\033[0m
-  Usuario: \033[1;32madmin@algoritmo.com\033[0m
-  Clave:   \033[1;32madmin123\033[0m
+  1. Inicie el servidor de desarrollo de Laravel:
+     \033[1;32mphp artisan serve\033[0m
+
+  2. Abra su navegador en la URL:
+     \033[1;36mhttp://127.0.0.1:8000\033[0m
+
+  \033[1;37m¿Qué sucederá en la primera pantalla? (Detección tipo Moodle):\033[0m
+  - El sistema detectará que la base de datos no está conectada o migrada
+    y abrirá automáticamente el \033[1;33mAsistente de Instalación Web\033[0m.
+  - Podrá seleccionar el motor de BD (MySQL, PostgreSQL, SQLite, SQL Server).
+  - Probar la conexión en tiempo real con el botón \033[1;32m"⚡ Probar Conexión"\033[0m.
+  - Crear la base de datos automáticamente si aún no existe en el servidor.
+  - Ejecutar las migraciones y registrar su Empresa y Super Administrador.
+  - Al finalizar, ingresará directamente al Login y al Dashboard del ERP.
 ====================================================================
 TXT;
         echo $credenciales . PHP_EOL;
